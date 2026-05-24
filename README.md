@@ -249,7 +249,7 @@ If you use this work, please cite:
 **Hafiza Alishba Naaz**  
 BS Mathematics — NUST Islamabad  
 📧 alishbanaaz91@gmail.com  
-📧 alishbanaaz@students.nust.edu.pk
+📧 alishba.bsmaths22sns@student.nust.edu.pk
 
 ---
 
