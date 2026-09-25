@@ -1,246 +1,140 @@
-# 🌍 Hybrid Deep Learning Approach for Modelling Global CO₂ Emissions
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
-[![Framework: TensorFlow](https://img.shields.io/badge/Framework-TensorFlow-orange.svg)](https://www.tensorflow.org/)
-[![Model: SARIMAX+LSTM](https://img.shields.io/badge/Model-SARIMAX%2BLSTM-green.svg)]()
-
-### SARIMAX + LSTM Hybrid Forecasting Framework
-
-> **Final Year Project — BS Mathematics, NUST Islamabad (2026)**
-> **Author:** Hafiza Alishba Naaz
-> **Supervisor:** Dr. Tahir Mehmood, Department of Mathematics, School of Natural Sciences, NUST
-
+---
+title: CO2 Hybrid Forecast
+emoji: 🌍
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
 ---
 
-## 📌 What This Project Does
+# CO₂ Hybrid Forecast — FastAPI App
 
-This project builds a **hybrid forecasting model** that combines two powerful techniques:
+A web app around your FYP's **Hybrid SARIMAX + LSTM** model, so anyone can:
 
-- **SARIMAX** — a classical statistical model that captures linear CO₂ emission trends and the influence of economic/energy factors
-- **LSTM (Long Short-Term Memory)** — a deep learning model that learns the nonlinear residual patterns left unexplained by SARIMAX
+- See the original dataset (top 10 CO₂ emitters, 2000–2020)
+- **Upload their own CSV** with the same columns to use different / updated data
+- Pick any country and train the hybrid model live, with adjustable
+  test-years and forecast-years
+- View the forecast on a chart, alongside SARIMAX-only accuracy for comparison
 
-Together, they produce more accurate long-term CO₂ emission forecasts than either model can achieve alone.
+It reuses the exact modelling logic from your notebooks
+(`02_sarimax_model.ipynb`, `03_lstm_hybrid_model.ipynb`) — same hyperparameters,
+same SARIMAX+LSTM-residual approach — just wrapped as callable functions
+instead of notebook cells.
 
-The model was applied to **annual CO₂ emission data (2000–2019)** from the **world's top 10 emitting countries** and used to forecast emissions up to **2024**.
-
----
-
-## 🌐 Countries Analyzed
-
-| # | Country | # | Country |
-|---|---------|---|---------|
-| 1 | 🇨🇳 China | 6 | 🇮🇷 Iran |
-| 2 | 🇺🇸 United States | 7 | 🇮🇩 Indonesia |
-| 3 | 🇮🇳 India | 8 | 🇸🇦 Saudi Arabia |
-| 4 | 🇷🇺 Russia | 9 | 🇰🇷 South Korea |
-| 5 | 🇯🇵 Japan | 10 | 🇩🇪 Germany |
-
-> These 10 countries account for nearly **70% of global CO₂ emissions**.
-
----
-
-## 📊 Key Results
-
-### Hybrid Model vs Standalone SARIMAX (Test Period: 2015–2019)
-
-| Metric | SARIMAX Alone | Hybrid Model | Improvement |
-|--------|--------------|--------------|-------------|
-| Avg MAPE | 5.09% | 4.22% | ✅ −0.87 pp |
-| Avg RMSE | 39,260 kt | 32,610 kt | ✅ −16.9% |
-| Avg R² | 0.876 | 0.940 | ✅ +0.064 |
-
-### Biggest Country-Level Improvements (RMSE Reduction)
-
-| Country | RMSE Reduction |
-|---------|---------------|
-| 🇨🇳 China | −23.6% |
-| 🇮🇳 India | −16.4% |
-| 🇸🇦 Saudi Arabia | −16.3% |
-| 🇺🇸 United States | −15.2% |
-
-### RMSE Comparison: SARIMAX vs LSTM vs Hybrid
-
-![RMSE Comparison Chart](results/rmse_comparison.png)
-
-> The Hybrid model consistently achieves the lowest RMSE across all countries, outperforming both standalone SARIMAX and raw LSTM models.
-
-### Residual Diagnostics
-All 10 countries passed the **Ljung–Box white noise test** (p > 0.05), confirming the hybrid model successfully removed both linear and nonlinear dependencies from the residuals.
-
----
-
-## 🔮 Future Forecasts (2020–2024)
-
-| Country | Forecast 2024 (kt) | Trend |
-|---------|-------------------|-------|
-| 🇨🇳 China | 10,850,000 | ↘ −0.5% |
-| 🇺🇸 United States | 4,720,000 | ↘ −6.0% |
-| 🇮🇳 India | 2,950,000 | ↗ +18.0% |
-| 🇷🇺 Russia | 1,650,000 | ↘ −1.2% |
-| 🇯🇵 Japan | 1,050,000 | ↘ −3.5% |
-| 🇮🇷 Iran | 780,000 | ↗ +7.5% |
-| 🇮🇩 Indonesia | 620,000 | ↗ +5.0% |
-| 🇸🇦 Saudi Arabia | 610,000 | ↗ +8.2% |
-| 🇰🇷 South Korea | 600,000 | ↘ −0.8% |
-| 🇩🇪 Germany | 680,000 | ↘ −2.5% |
-
-**Key insight:** Developed economies show declining trends while rapidly industrializing nations continue to grow — highlighting the urgent need for climate policy in emerging economies.
-
----
-
-## 🛠️ Methodology Overview
+## Project layout
 
 ```
-Raw Data (Kaggle - Global Sustainable Energy Dataset)
-        ↓
-Data Preprocessing
-  • Missing value imputation (country-specific means)
-  • Log(1+x) transformation for skewness
-  • Train: 2000–2014 | Test: 2015–2019
-        ↓
-Feature Selection
-  • Lasso / ElasticNet regularization
-  • Granger causality testing
-        ↓
-Stage 1: SARIMAX Model
-  • ADF stationarity test → differencing (d=1)
-  • Auto ARIMA order selection (pmdarima)
-  • Exogenous variables: GDP per capita, GDP growth,
-    primary energy per capita, renewable energy share
-  • Generates linear forecasts + residuals
-        ↓
-Stage 2: LSTM Residual Correction
-  • MinMaxScaler normalization of residuals
-  • 3-year sliding window lookback
-  • Architecture: LSTM(32) → LSTM(16) → Dense(1)
-  • Dropout(0.2), Adam optimizer, MSE loss
-  • Autoregressive residual prediction
-        ↓
-Hybrid Output
-  ŷ_hybrid = ŷ_SARIMAX + r̂_LSTM
-        ↓
-Evaluation: RMSE · MAE · MAPE · R²
-Ljung–Box residual diagnostic test
-        ↓
-Future Forecasts (2020–2024)
-  • Linear trend extrapolation of exogenous variables
-  • Full dataset retraining → hybrid forecast
+fyp_app/
+└── backend/
+    ├── main.py             FastAPI app (routes)
+    ├── model_pipeline.py   The hybrid SARIMAX+LSTM logic
+    ├── requirements.txt
+    ├── data/                Default bundled dataset (your original CSV)
+    └── static/index.html    Frontend (vanilla HTML/JS + Chart.js)
 ```
 
----
-
-## 📦 Tech Stack
-
-| Category | Libraries |
-|----------|-----------|
-| **Data Processing** | `pandas`, `numpy` |
-| **Statistical Modeling** | `statsmodels`, `pmdarima` |
-| **Deep Learning** | `tensorflow`, `keras` |
-| **Feature Selection** | `scikit-learn` (Lasso, ElasticNet, MinMaxScaler) |
-| **Evaluation** | `scikit-learn` (RMSE, MAE, R²) |
-| **Visualization** | `matplotlib`, `seaborn` |
-
----
-
-## ⚙️ Installation & Setup
+## Run it locally
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/alishbanaaz/A-Hybrid-Deep-Learning-Approach-For-Modelling-Global-Carbon-Emission.git
-cd A-Hybrid-Deep-Learning-Approach-For-Modelling-Global-Carbon-Emission
+cd backend
+python3 -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
 
-# 2. Install dependencies
 pip install -r requirements.txt
-
-# 3. Download the dataset
-# Dataset: Global Data on Sustainable Energy (Kaggle, 2023)
-# https://www.kaggle.com/datasets/anshtanwar/global-data-on-sustainable-energy
-# Place the CSV file in the /data folder
-
-# 4. Run notebooks
-jupyter notebook
+uvicorn main:app --reload
 ```
 
----
+Then open **http://127.0.0.1:8000** in your browser.
 
-## 📋 Requirements
+> First install will take a few minutes because of `tensorflow` and `pmdarima`.
+> Training a country typically takes 5–30 seconds (LSTM has early stopping).
 
-```
-pandas>=1.5.0
-numpy>=1.23.0
-statsmodels>=0.14.0
-pmdarima>=2.0.0
-scikit-learn>=1.2.0
-tensorflow>=2.12.0
-matplotlib>=3.7.0
-seaborn>=0.12.0
-jupyter>=1.0.0
-```
+## How "someone else can use the model" works
 
----
+1. They open the app (locally, or wherever you deploy it).
+2. They either use your bundled dataset, or upload their own CSV with
+   these columns:
+   `Entity, Year, Value_co2_emissions_kt_by_country, gdp_per_capita,
+   gdp_growth, Primary energy consumption per capita (kWh/person),
+   Renewable energy share in the total final energy consumption (%)`
+3. They pick a country, set how many years to hold out for testing and how
+   many years to forecast ahead, and click **Train Model & Forecast**.
+4. The API retrains SARIMAX + the LSTM residual model on the current dataset
+   for that country, and returns accuracy metrics + a future forecast, shown
+   as a chart.
 
-## 🎯 Who Can Use This Project?
+Each user's uploaded data lives only in that server's memory for the current
+session (`POST /api/reset-data` reverts to your original dataset).
 
-| Who | How |
-|-----|-----|
-| 🌱 **Climate researchers** | Extend the framework to more countries or longer horizons |
-| 🏛️ **Policy makers & NGOs** | Use emission forecasts to plan climate interventions |
-| 🎓 **ML/DS students** | Learn how to combine statistical + deep learning models |
-| 📊 **Data scientists** | Reference for hybrid time-series forecasting methodology |
-| ⚡ **Energy planners** | Understand emission-energy relationships for transition planning |
-| 🔬 **Academic researchers** | Build on this work — extend to monthly data or Transformer models |
+## API reference
 
----
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/data-summary` | Current dataset info |
+| GET | `/api/countries?n=10` | Top-N countries by mean emissions |
+| POST | `/api/upload-data` | Upload a CSV (multipart `file`) to replace the working dataset |
+| POST | `/api/reset-data` | Revert to the original bundled dataset |
+| POST | `/api/train/{country}?test_years=5&forecast_years=5` | Train + forecast for one country |
+| GET | `/api/forecast/{country}` | Fetch the last trained result for a country |
 
-## 🔬 Research Gap Addressed
+Interactive Swagger docs are auto-generated at **http://127.0.0.1:8000/docs**.
 
-Most prior studies either:
-- Use **only statistical models** (ARIMA/SARIMAX) — miss nonlinear patterns
-- Use **only deep learning** (LSTM/GRU) — overfit on small annual datasets
+## Deploy to Hugging Face Spaces (Docker)
 
-This project fills the gap by combining both: SARIMAX captures linear structure and exogenous effects, while LSTM corrects the remaining nonlinear residuals — giving the best of both worlds.
+This repo already includes a `Dockerfile` and the YAML block at the very top
+of this README that Spaces reads as config (`sdk: docker`, `app_port: 7860`).
 
----
+**Steps:**
 
-## 🚀 Future Work
+1. Go to https://huggingface.co/new-space
+2. Pick a name (e.g. `co2-hybrid-forecast`), set **SDK = Docker**, visibility
+   Public or Private, then click **Create Space**.
+3. Push this whole `fyp_app/` folder's contents to the Space's repo — either:
+   - **Web UI**: on the Space page, use "Files" → "Add file" → "Upload files"
+     and drag in everything (keep the folder structure: `Dockerfile`,
+     `README.md`, `backend/...`).
+   - **Git** (recommended once you have more changes to push):
+     ```bash
+     git clone https://huggingface.co/spaces/<your-username>/co2-hybrid-forecast
+     cd co2-hybrid-forecast
+     # copy this fyp_app folder's contents in here (Dockerfile, README.md, backend/)
+     git add .
+     git commit -m "Deploy CO2 hybrid forecast app"
+     git push
+     ```
+     You'll need a Hugging Face access token (Settings → Access Tokens) as
+     your git password when it prompts for auth.
+4. The Space will build automatically (watch the "Logs" tab — first build
+   takes several minutes because of `tensorflow`/`pmdarima`). Once it says
+   "Running", your app is live at:
+   `https://huggingface.co/spaces/<your-username>/co2-hybrid-forecast`
+5. That's a real, shareable link — put it in your FYP report, LinkedIn post,
+   or CV.
 
-- [ ] Extend to monthly/quarterly data for richer LSTM training
-- [ ] Incorporate more exogenous variables (carbon tax, industrial regulation, population)
-- [ ] Explore Transformer-based architectures (Temporal Fusion Transformer)
-- [ ] Add prediction intervals / uncertainty quantification
-- [ ] Validate on regional or sector-level emission data
-- [ ] Deploy as an interactive Streamlit web app
+**A few Spaces-specific notes:**
+- Free-tier Spaces sleep after a period of inactivity and take ~30-60s to
+  wake up on the next visit — normal, not a bug.
+- Uploaded CSVs and trained results live only in that container's memory, so
+  they reset whenever the Space restarts/sleeps. Good enough for a portfolio
+  demo; say so if you want persistence added later (e.g. via a small database
+  or Spaces' persistent storage add-on).
+- If the free CPU tier feels slow for LSTM training, Spaces lets you upgrade
+  to a paid CPU/GPU tier from the Space's **Settings** tab.
 
----
+## Other deployment options
 
-## 📄 Citation
+Render, Railway, and Fly.io all work too if you'd rather not use Spaces —
+same `Dockerfile` works there as-is (they auto-detect it), or you can point
+them at `uvicorn main:app --host 0.0.0.0 --port $PORT` directly.
 
-If you use this work, please cite:
+## Notes / things worth knowing before you demo it
 
-```bibtex
-@thesis{naaz2026hybrid,
-  title     = {A Hybrid Deep Learning Approach for Modelling Global Carbon Emissions},
-  author    = {Naaz, Hafiza Alishba},
-  year      = {2026},
-  school    = {National University of Sciences and Technology (NUST)},
-  type      = {BS Final Year Project},
-  supervisor= {Dr. Tahir Mehmood},
-  department= {Department of Mathematics, School of Natural Sciences}
-}
-```
-
----
-
-## 📬 Contact
-
-**Hafiza Alishba Naaz**
-BS Mathematics — NUST Islamabad
-📧 alishbanaaz91@gmail.com
-📧 alishbanaaz@students.nust.edu.pk
-
----
-
-<p align="center">
-  Made with ❤️ at NUST Islamabad · Department of Mathematics · 2026
-</p>
+- Training is done **in-memory per request** — there's no database, no
+  authentication, and no multi-user isolation. Fine for a portfolio/demo app,
+  not production-ready as-is.
+- A country needs at least 8 years of usable rows (target + all 4 exogenous
+  columns present) to train; the API returns a clear 400 error otherwise.
+- The LSTM residual model is retrained from scratch on every `/api/train`
+  call (matches your notebook's approach — no persisted `.h5` weights).
