@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CO₂ Hybrid Forecast — SARIMAX + LSTM</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#042C53; --blue:#185FA5; --mid:#378ADD; --light:#B5D4F4;
+    --teal:#1D9E75; --coral:#E63946; --amber:#F4A261; --bg:#F5F8FC;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Segoe UI',Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--navy);
+  }
+  header{
+    background:linear-gradient(135deg,var(--navy),var(--blue));
+    color:#fff; padding:28px 24px;
+  }
+  header h1{margin:0 0 4px; font-size:1.4rem;}
+  header p{margin:0; opacity:.85; font-size:.9rem;}
+  main{max-width:1000px; margin:0 auto; padding:24px;}
+  .card{
+    background:#fff; border-radius:12px; padding:20px 22px;
+    box-shadow:0 2px 10px rgba(4,44,83,.08); margin-bottom:20px;
+  }
+  .card h2{margin-top:0; font-size:1.05rem; color:var(--blue);}
+  .row{display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;}
+  .field{display:flex; flex-direction:column; gap:4px; font-size:.85rem;}
+  select, input[type=number]{
+    padding:8px 10px; border:1px solid var(--light); border-radius:8px; font-size:.9rem;
+  }
+  button{
+    background:var(--blue); color:#fff; border:none; padding:10px 18px;
+    border-radius:8px; font-size:.9rem; cursor:pointer; transition:background .15s;
+  }
+  button:hover{background:var(--navy);}
+  button.secondary{background:#fff; color:var(--blue); border:1px solid var(--blue);}
+  button.secondary:hover{background:var(--light);}
+  button:disabled{opacity:.5; cursor:not-allowed;}
+  #dataSummary{font-size:.85rem; color:#456; line-height:1.6;}
+  #status{font-size:.85rem; margin-top:10px; min-height:1.2em;}
+  .status-ok{color:var(--teal);} .status-err{color:var(--coral);}
+  table{width:100%; border-collapse:collapse; font-size:.85rem; margin-top:10px;}
+  th,td{padding:6px 10px; text-align:right; border-bottom:1px solid #eef2f7;}
+  th:first-child, td:first-child{text-align:left;}
+  th{color:var(--blue);}
+  .metric-hybrid{color:var(--teal); font-weight:600;}
+  .metric-sarimax{color:#888;}
+  canvas{max-height:380px;}
+  .hidden{display:none;}
+  .spinner{
+    display:inline-block; width:14px; height:14px; border:2px solid var(--light);
+    border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite;
+    vertical-align:middle; margin-right:6px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌍 CO₂ Hybrid Forecast — SARIMAX + LSTM</h1>
+  <p>Final Year Project by Hafiza Alishba Naaz — NUST Islamabad. Upload your own energy data and forecast future CO₂ emissions.</p>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>1. Dataset</h2>
+    <div id="dataSummary">Loading dataset info…</div>
+    <div class="row" style="margin-top:14px;">
+      <div class="field">
+        <label for="csvFile">Upload a CSV to use your own data</label>
+        <input type="file" id="csvFile" accept=".csv">
+      </div>
+      <button id="uploadBtn">Upload &amp; Use</button>
+      <button id="resetBtn" class="secondary">Reset to Original Dataset</button>
+    </div>
+    <p style="font-size:.78rem; color:#789; margin-top:10px;">
+      Required columns: <code>Entity</code>, <code>Year</code>,
+      <code>Value_co2_emissions_kt_by_country</code>, <code>gdp_per_capita</code>,
+      <code>gdp_growth</code>, <code>Primary energy consumption per capita (kWh/person)</code>,
+      <code>Renewable energy share in the total final energy consumption (%)</code>.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>2. Train &amp; Forecast</h2>
+    <div class="row">
+      <div class="field">
+        <label for="countrySelect">Country</label>
+        <select id="countrySelect"></select>
+      </div>
+      <div class="field">
+        <label for="testYears">Held-out test years</label>
+        <input type="number" id="testYears" value="5" min="1" max="15">
+      </div>
+      <div class="field">
+        <label for="forecastYears">Years to forecast ahead</label>
+        <input type="number" id="forecastYears" value="5" min="1" max="20">
+      </div>
+      <button id="trainBtn">Train Model &amp; Forecast</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card hidden" id="resultsCard">
+    <h2>3. Results</h2>
+    <canvas id="chart"></canvas>
+    <table id="metricsTable">
+      <thead>
+        <tr><th>Model</th><th>MAPE</th><th>RMSE</th><th>R²</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+const API = '';
+let chart = null;
+
+async function refreshDataSummary() {
+  const r = await fetch(API + '/api/data-summary');
+  const d = await r.json();
+  document.getElementById('dataSummary').innerHTML =
+    `<b>Source:</b> ${d.source} &nbsp;|&nbsp; <b>Rows:</b> ${d.rows} &nbsp;|&nbsp; ` +
+    `<b>Countries:</b> ${d.countries} &nbsp;|&nbsp; <b>Years:</b> ${d.year_min}–${d.year_max}`;
+  return d;
+}
+
+async function refreshCountries() {
+  const r = await fetch(API + '/api/countries?n=15');
+  const d = await r.json();
+  const sel = document.getElementById('countrySelect');
+  sel.innerHTML = d.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function setStatus(msg, kind) {
+  const el = document.getElementById('status');
+  el.className = kind === 'err' ? 'status-err' : kind === 'ok' ? 'status-ok' : '';
+  el.innerHTML = msg;
+}
+
+document.getElementById('uploadBtn').onclick = async () => {
+  const fileInput = document.getElementById('csvFile');
+  if (!fileInput.files.length) { setStatus('Choose a CSV file first.', 'err'); return; }
+  const form = new FormData();
+  form.append('file', fileInput.files[0]);
+  setStatus('<span class="spinner"></span>Uploading…');
+  try {
+    const r = await fetch(API + '/api/upload-data', { method: 'POST', body: form });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Upload failed');
+    setStatus('Dataset uploaded — now using your data.', 'ok');
+    await refreshDataSummary();
+    await refreshCountries();
+    document.getElementById('resultsCard').classList.add('hidden');
+  } catch (e) { setStatus(e.message, 'err'); }
+};
+
+document.getElementById('resetBtn').onclick = async () => {
+  setStatus('<span class="spinner"></span>Resetting…');
+  await fetch(API + '/api/reset-data', { method: 'POST' });
+  setStatus('Reverted to the original FYP dataset.', 'ok');
+  await refreshDataSummary();
+  await refreshCountries();
+  document.getElementById('resultsCard').classList.add('hidden');
+};
+
+document.getElementById('trainBtn').onclick = async () => {
+  const country = document.getElementById('countrySelect').value;
+  const testYears = document.getElementById('testYears').value;
+  const forecastYears = document.getElementById('forecastYears').value;
+  const btn = document.getElementById('trainBtn');
+  btn.disabled = true;
+  setStatus(`<span class="spinner"></span>Training hybrid SARIMAX+LSTM for ${country}… this can take up to a minute.`);
+  try {
+    const r = await fetch(
+      `${API}/api/train/${encodeURIComponent(country)}?test_years=${testYears}&forecast_years=${forecastYears}`,
+      { method: 'POST' }
+    );
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Training failed');
+    setStatus(`Done — hybrid MAPE ${d.metrics.hybrid.mape.toFixed(2)}% vs SARIMAX ${d.metrics.sarimax.mape.toFixed(2)}%.`, 'ok');
+    renderResults(d);
+  } catch (e) {
+    setStatus(e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+function renderResults(d) {
+  document.getElementById('resultsCard').classList.remove('hidden');
+
+  const histYears = d.history.years;
+  const histVals = d.history.actual;
+  const testYears = d.metrics.test_years;
+  const sarimaxTest = d.metrics.sarimax.predictions;
+  const hybridTest = d.metrics.hybrid.predictions;
+  const futYears = d.forecast.years;
+  const futHybrid = d.forecast.hybrid;
+  const futSarimax = d.forecast.sarimax;
+
+  const allYears = [...histYears, ...futYears];
+
+  const pad = (arr, before, after) => Array(before).fill(null).concat(arr, Array(after).fill(null));
+  const testOffset = histYears.length - testYears.length;
+
+  const datasets = [
+    {
+      label: 'Actual (history)',
+      data: pad(histVals, 0, futYears.length),
+      borderColor: '#042C53', backgroundColor: '#042C53',
+      pointRadius: 2, tension: 0.15,
+    },
+    {
+      label: 'SARIMAX (test)',
+      data: pad(sarimaxTest, testOffset, allYears.length - testOffset - sarimaxTest.length),
+      borderColor: '#B5D4F4', borderDash: [5, 3], pointRadius: 2, tension: 0.15,
+    },
+    {
+      label: 'Hybrid (test)',
+      data: pad(hybridTest, testOffset, allYears.length - testOffset - hybridTest.length),
+      borderColor: '#1D9E75', pointRadius: 2, tension: 0.15,
+    },
+    {
+      label: 'Hybrid forecast',
+      data: pad(futHybrid, histYears.length, 0),
+      borderColor: '#E63946', pointRadius: 3, tension: 0.15,
+    },
+    {
+      label: 'SARIMAX forecast',
+      data: pad(futSarimax, histYears.length, 0),
+      borderColor: '#F4A261', borderDash: [5, 3], pointRadius: 2, tension: 0.15,
+    },
+  ];
+
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('chart'), {
+    type: 'line',
+    data: { labels: allYears, datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom' } },
+      scales: { y: { title: { display: true, text: 'kt CO₂' } } },
+    },
+  });
+
+  const tbody = document.querySelector('#metricsTable tbody');
+  tbody.innerHTML = `
+    <tr class="metric-sarimax"><td>SARIMAX</td>
+      <td>${d.metrics.sarimax.mape.toFixed(2)}%</td>
+      <td>${Math.round(d.metrics.sarimax.rmse).toLocaleString()}</td>
+      <td>${d.metrics.sarimax.r2.toFixed(3)}</td></tr>
+    <tr class="metric-hybrid"><td>Hybrid (SARIMAX+LSTM)</td>
+      <td>${d.metrics.hybrid.mape.toFixed(2)}%</td>
+      <td>${Math.round(d.metrics.hybrid.rmse).toLocaleString()}</td>
+      <td>${d.metrics.hybrid.r2.toFixed(3)}</td></tr>`;
+}
+
+(async function init() {
+  await refreshDataSummary();
+  await refreshCountries();
+})();
+</script>
+</body>
+</html>
