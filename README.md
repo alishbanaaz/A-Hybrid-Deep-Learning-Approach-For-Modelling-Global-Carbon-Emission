@@ -19,7 +19,7 @@ This project now ships as a working web app, not just notebooks — pick a
 country, retrain the hybrid model live, and forecast future emissions, or
 upload your own energy dataset and forecast on that instead.
 
-- **Live app:** _add your deployed URL here once it's live_
+- **Live app:** _https://a-hybrid-deep-learning-approach-for-modelling-global-carbon-em.streamlit.app_
 - **Run it yourself:** see [Running the Web App](#️-running-the-web-app) below
 
 ---
